@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Window Film Energy Savings Calculator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .calculator-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            padding: 40px 30px;
+            color: white;
+            text-align: center;
+        }
+        .header-icon { font-size: 40px; margin-bottom: 8px; }
+        .header h1 { margin: 0 0 10px 0; font-size: 32px; font-weight: 700; }
+        .header p { margin: 0; opacity: 0.9; font-size: 16px; }
+        .progress-bar-container { padding: 20px 30px; background: #f8f9fa; }
+        .progress-steps { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 12px; }
+        .progress-step { font-weight: 400; color: #999; flex: 1; text-align: center; }
+        .progress-step.active { font-weight: 600; color: #1e3c72; }
+        .progress-bar { height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); transition: width 0.3s ease; }
+        .content { padding: 40px 30px; min-height: 400px; }
+        .step { display: none; }
+        .step.active { display: block; }
+        h2 { margin-top: 0; color: #1e3c72; font-size: 24px; margin-bottom: 10px; }
+        .subtitle { color: #666; margin-bottom: 30px; }
+        
+        .map-search-container { position: relative; margin-bottom: 20px; }
+        .search-input {
+            width: 100%;
+            padding: 16px;
+            font-size: 16px;
+            border: 2px solid #667eea;
+            border-radius: 12px;
+            outline: none;
+        }
+        .search-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #667eea;
+            border-top: none;
+            border-radius: 0 0 12px 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .search-dropdown.show { display: block; }
+        .dropdown-item { padding: 12px 16px; cursor: pointer; transition: background 0.2s; }
+        .dropdown-item:hover { background: #f0f4ff; }
+        .dropdown-item strong { color: #1e3c72; }
+        
+        .map-container {
+            position: relative;
+            width: 100%;
+            height: 450px;
+            background: #e8f1ff;
+            border-radius: 12px;
+            border: 2px solid #667eea;
+            overflow: hidden;
+        }
+        .map-image { width: 100%; height: 100%; object-fit: cover; }
+        .city-markers-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        .city-point {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #667eea;
+            border: 2px solid white;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s;
+            transform: translate(-50%, -50%);
+        }
+        .city-point:hover { background: #764ba2; width: 16px; height: 16px; }
+        .city-point.selected { background: #22c55e; width: 18px; height: 18px; }
+        .city-label {
+            position: absolute;
+            font-size: 11px;
+            font-weight: 500;
+            color: #333;
+            white-space: nowrap;
+            pointer-events: none;
+            transform: translate(-50%, -25px);
+        }
+        .selected-city-info {
+            margin-top: 20px;
+            padding: 16px;
+            background: white;
+            border-radius: 12px;
+            border: 2px solid #667eea;
+            display: none;
+        }
+        .selected-city-info.show { display: block; }
+        .selected-city-info strong { color: #1e3c72; font-size: 18px; }
+        
+        .glass-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+        .glass-card {
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: white;
+        }
+        .glass-card:hover { border-color: #667eea; transform: translateY(-2px); }
+        .glass-card.selected { border: 3px solid #667eea; background: #f0f4ff; }
+        .glass-card-image {
+            width: 100%;
+            height: 180px;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .glass-card-image img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .glass-card-content { padding: 16px; }
+        .glass-card-title { font-weight: 600; color: #1e3c72; margin-bottom: 4px; }
+        .glass-card-desc { font-size: 13px; color: #666; }
+        
+        .options-grid { display: grid; gap: 12px; }
+        .option-button {
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            background: white;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+            font-size: 16px;
+            font-family: inherit;
+        }
+        .option-button:hover { border-color: #667eea; }
+        .option-button.selected { border: 3px solid #667eea; background: #f0f4ff; }
+        .option-button strong { color: #1e3c72; }
+        
+        .form-group { margin-bottom: 30px; }
+        .form-label { display: block; margin-bottom: 12px; font-weight: 600; color: #333; }
+        .input-with-unit { display: flex; gap: 12px; align-items: center; }
+        .form-input {
+            flex: 1;
+            padding: 16px;
+            font-size: 18px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-family: inherit;
+        }
+        .form-input:focus { outline: none; border-color: #667eea; }
+        .unit-toggle { display: flex; border: 2px solid #e0e0e0; border-radius: 12px; overflow: hidden; }
+        .unit-option {
+            padding: 12px 20px;
+            background: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.2s;
+        }
+        .unit-option.active { background: #667eea; color: white; }
+        
+        .living-room-preview-container {
+            position: relative;
+            width: 100%;
+            height: 350px;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-top: 16px;
+            border: 2px solid #e0e0e0;
+        }
+        .living-room-base { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .living-room-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: black;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        
+        .range-slider {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #e0e0e0;
+            border-radius: 4px;
+            outline: none;
+        }
+        .range-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            background: #667eea;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .range-slider::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            background: #667eea;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+        .range-labels { display: flex; justify-content: space-between; font-size: 14px; color: #666; margin-top: 8px; }
+        .button-group { display: flex; gap: 12px; margin-top: 30px; }
+        .btn {
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+        .btn-primary { flex: 2; background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+        .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-secondary { flex: 1; background: white; color: #667eea; border: 2px solid #667eea; }
+        .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        
+        .results-title { margin-top: 0; color: #1e3c72; font-size: 24px; text-align: center; margin-bottom: 24px; }
+        .results-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; }
+        .result-card { padding: 20px; border-radius: 12px; position: relative; }
+        .info-icon {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .info-tooltip {
+            display: none;
+            position: absolute;
+            top: 45px;
+            right: 16px;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 12px;
+            width: 250px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10;
+            font-size: 13px;
+            color: #333;
+            font-weight: normal;
+        }
+        .info-icon:hover + .info-tooltip { display: block; }
+        .result-card.blue { background: #f0f9ff; border: 2px solid #0ea5e9; }
+        .result-card.green { background: #f0fdf4; border: 2px solid #22c55e; }
+        .result-card.yellow { background: #fef3c7; border: 2px solid #eab308; }
+        .result-card-label { font-size: 14px; margin-bottom: 8px; font-weight: 500; }
+        .result-card.blue .result-card-label { color: #0369a1; }
+        .result-card.green .result-card-label { color: #15803d; }
+        .result-card.yellow .result-card-label { color: #854d0e; }
+        .result-card-value { font-size: 32px; font-weight: 700; margin-bottom: 4px; }
+        .result-card.blue .result-card-value { color: #0c4a6e; }
+        .result-card.green .result-card-value { color: #14532d; }
+        .result-card.yellow .result-card-value { color: #713f12; }
+        .result-card-unit { font-size: 14px; }
+        .result-card.blue .result-card-unit { color: #0369a1; }
+        .result-card.green .result-card-unit { color: #15803d; }
+        .result-card.yellow .result-card-unit { color: #854d0e; }
+        
+        .recommended-film {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 24px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        .recommended-film-label { font-size: 16px; opacity: 0.9; margin-bottom: 8px; }
+        .recommended-film-name { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+        .recommended-film-specs { font-size: 14px; opacity: 0.9; }
+        
+        .info-box { background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 24px; }
+        .info-box h3 { margin-top: 0; font-size: 18px; color: #333; margin-bottom: 16px; }
+        .info-row { display: flex; justify-content: space-between; padding: 8px 0; align-items: center; }
+        .info-row-value { text-align: right; font-weight: 600; }
+        .spec-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; font-size: 14px; }
+        .spec-item { display: flex; justify-content: space-between; }
+        .spec-value { font-weight: 600; text-align: right; }
+        
+        .footer {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            text-align: center;
+            font-size: 14px;
+            color: #666;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        @media (max-width: 768px) {
+            .results-grid { grid-template-columns: 1fr; }
+            .spec-grid { grid-template-columns: 1fr; }
+            .glass-grid { grid-template-columns: 1fr; }
+            .header h1 { font-size: 24px; }
+            .progress-steps { font-size: 10px; }
+        }
+        
+        .optional-badge {
+            display: inline-block;
+            background: #fef3c7;
+            color: #854d0e;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .skip-button { background: #f0f0f0; color: #666; border: 2px solid #e0e0e0; }
+        .skip-button:hover { background: #e8e8e8; }
+    </style>
+</head>
+<body>
+    <div class="calculator-container">
+        <div class="header">
+            <div class="header-icon">🏢</div>
+            <h1>Window Film Energy Calculator</h1>
+            <p>Calculate your energy savings with advanced window film technology</p>
+        </div>
+
+        <div class="progress-bar-container">
+            <div class="progress-steps">
+                <div class="progress-step" id="progress-step-1">Location</div>
+                <div class="progress-step" id="progress-step-2">Building</div>
+                <div class="progress-step" id="progress-step-3">Glass</div>
+                <div class="progress-step" id="progress-step-4">Space</div>
+                <div class="progress-step" id="progress-step-5">Windows</div>
+                <div class="progress-step" id="progress-step-6">Film</div>
+                <div class="progress-step" id="progress-step-7">Results</div>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="step active" id="step-1">
+                <h2>Select Your Location</h2>
+                <p class="subtitle">Search or click on a city on the map</p>
+                
+                <div class="map-search-container">
+                    <input type="text" class="search-input" id="city-search" 
+                           placeholder="🔍 Type your city name (e.g., Los Angeles, New York)..." 
+                           onkeyup="searchCity()" onfocus="showDropdown()" autocomplete="off">
+                    <div class="search-dropdown" id="search-dropdown"></div>
+                </div>
+
+                <div class="map-container">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Blank_US_Map_%28states_only%29.svg/2000px-Blank_US_Map_%28states_only%29.svg.png" 
+                         alt="US Map" class="map-image">
+                    <div class="city-markers-overlay" id="city-markers"></div>
+                </div>
+
+                <div class="selected-city-info" id="selected-city-info">
+                    <strong id="selected-city-name">No city selected</strong>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="nextStep()" id="step-1-next" disabled>
+                        Next: Building Type
+                    </button>
+                </div>
+            </div>
+
+            <div class="step" id="step-2">
+                <h2>Building Type</h2>
+                <p class="subtitle">Select the type of building</p>
+                <div class="options-grid" id="building-options"></div>
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="previousStep()">Back</button>
+                    <button class="btn btn-primary" onclick="nextStep()" id="step-2-next" disabled>Next: Glass Type</button>
+                </div>
+            </div>
+
+            <div class="step" id="step-3">
+                <h2>Current Glass Type</h2>
+                <p class="subtitle">Select your current window glass type</p>
+                <div class="glass-grid" id="glass-options"></div>
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="previousStep()">Back</button>
+                    <button class="btn btn-primary" onclick="nextStep()" id="step-3-next" disabled>Next: Building Area</button>
+                </div>
+            </div>
+
+            <div class="step" id="step-4">
+                <h2>Building/Space Area <span class="optional-badge">OPTIONAL</span></h2>
+                <p class="subtitle">Enter your building or space area for more accurate estimates (or skip this step)</p>
+                
+                <div class="form-group">
+                    <label class="form-label">Total Building/Space Area</label>
+                    <div class="input-with-unit">
+                        <input type="number" class="form-input" id="building-area" value="" min="0" placeholder="Enter area (optional)">
+                        <div class="unit-toggle" id="building-unit-toggle">
+                            <button class="unit-option active" data-unit="m2">m²</button>
+                            <button class="unit-option" data-unit="ft2">ft²</button>
+                        </div>
+                    </div>
+                    <p style="font-size: 13px; color: #666; margin-top: 8px;">
+                        💡 Providing this helps us estimate your window-to-wall ratio more accurately
+                    </p>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="previousStep()">Back</button>
+                    <button class="btn skip-button" onclick="skipBuildingArea()">Skip This Step</button>
+                    <button class="btn btn-primary" onclick="nextStep()">Next: Window Area</button>
+                </div>
+            </div>
+
+            <div class="step" id="step-5">
+                <h2>Window Details</h2>
+                
+                <div class="form-group">
+                    <label class="form-label">Total Window Area</label>
+                    <div class="input-with-unit">
+                        <input type="number" class="form-input" id="window-area" value="100" min="1">
+                        <div class="unit-toggle" id="window-unit-toggle">
+                            <button class="unit-option active" data-unit="m2">m²</button>
+                            <button class="unit-option" data-unit="ft2">ft²</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Electricity Cost ($/kWh)</label>
+                    <input type="number" class="form-input" id="electricity-cost" value="0.12" step="0.01" min="0">
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="previousStep()">Back</button>
+                    <button class="btn btn-primary" onclick="nextStep()">Next: Film Preference</button>
+                </div>
+            </div>
+
+            <div class="step" id="step-6">
+                <h2>Film Preference</h2>
+                
+                <div class="form-group">
+                    <label class="form-label">Desired Light Transmission: <span id="vlt-value">50</span>%</label>
+                    <input type="range" class="range-slider" id="vlt-slider" min="10" max="90" value="50" oninput="updateLivingRoomPreview()">
+                    <div class="range-labels">
+                        <span>Darker (More Privacy)</span>
+                        <span>Lighter (More Daylight)</span>
+                    </div>
+                    
+                    <div class="living-room-preview-container">
+                        <img src="Living_Room_2.jpg" class="living-room-base" alt="Living Room">
+                        <div class="living-room-overlay" id="living-room-overlay"></div>
+                    </div>
+                    <p style="font-size: 13px; color: #666; text-align: center; margin-top: 8px;">
+                        Preview shows approximate interior brightness with selected film
+                    </p>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="previousStep()">Back</button>
+                    <button class="btn btn-primary" onclick="calculateSavings()">Calculate Savings</button>
+                </div>
+            </div>
+
+            <div class="step" id="step-7">
+                <div id="results-page">
+                    <h2 class="results-title">Your Energy Savings Report</h2>
+                    <div id="results-container"></div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="downloadResults()" style="flex: 1;">📥 Download Results</button>
+                    <button class="btn btn-primary" onclick="resetCalculator()" style="flex: 1;">Calculate Again</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Note: Results are estimates based on typical conditions. Actual savings may vary.</p>
+        </div>
+    </div>
+
+    <script>
+        const WINDOW_FILMS = [
+            { id: 'tsds70-3', name: 'TSDS70-3', vlt: 70, sc: 0.50, ir_1400: 97, ir_950: 85, uvr: 99, tser: 52 },
+            { id: 'tsds737-3', name: 'TSDS737-3', vlt: 72, sc: 0.52, ir_1400: 94, ir_950: 77, uvr: 99, tser: 54 },
+            { id: 'tsds40-3', name: 'TSDS40-3', vlt: 36, sc: 0.37, ir_1400: 97, ir_950: 87, uvr: 99, tser: 64 },
+            { id: 'tsds25-3', name: 'TSDS25-3', vlt: 24, sc: 0.36, ir_1400: 98, ir_950: 90, uvr: 99, tser: 63 },
+            { id: 'tsds16-3', name: 'TSDS16-3', vlt: 16, sc: 0.33, ir_1400: 96, ir_950: 90, uvr: 99, tser: 63 },
+            { id: 'tsdsc70-2', name: 'TSDSC70-2', vlt: 70, sc: 0.54, ir_1400: 93, ir_950: 76, uvr: 99, tser: 53 },
+            { id: 'tsdsc50-2', name: 'TSDSC50-2', vlt: 52, sc: 0.43, ir_1400: 95, ir_950: 80, uvr: 99, tser: 60 },
+            { id: 'tsdsc40-2', name: 'TSDSC40-2', vlt: 38, sc: 0.37, ir_1400: 93, ir_950: 78, uvr: 99, tser: 55 },
+            { id: 'tsdsc25-2', name: 'TSDSC25-2', vlt: 26, sc: 0.36, ir_1400: 91, ir_950: 80, uvr: 99, tser: 61 },
+            { id: 'tsdsc15-2', name: 'TSDSC15-2', vlt: 15, sc: 0.30, ir_1400: 98, ir_950: 90, uvr: 99, tser: 63 },
+            { id: 'tsss70y', name: 'TSSS70Y', vlt: 73, sc: 0.64, ir_1400: 53, ir_950: 40, uvr: 99, tser: 35 },
+            { id: 'tsss60y', name: 'TSSS60Y', vlt: 69, sc: 0.58, ir_1400: 65, ir_950: 56, uvr: 99, tser: 40 },
+            { id: 'tsss60gnx', name: 'TSSS60GNX', vlt: 69, sc: 0.62, ir_1400: 57, ir_950: 46, uvr: 99, tser: 36 },
+            { id: 'tsss60x', name: 'TSSS60X', vlt: 73, sc: 0.69, ir_1400: 48, ir_950: 39, uvr: 99, tser: 35 },
+            { id: 'tszr75', name: 'TSZR75', vlt: 75, sc: 0.60, ir_1400: 94, ir_950: 90, uvr: 99, tser: 47 },
+            { id: 'tszrjs70', name: 'TSZRJS70', vlt: 70, sc: 0.54, ir_1400: 93, ir_950: 77, uvr: 99, tser: 61 },
+            { id: 'tszrys70', name: 'TSZRYS70', vlt: 66, sc: 0.54, ir_1400: 93, ir_950: 84, uvr: 99, tser: 53 },
+            { id: 'tszr35', name: 'TSZR35', vlt: 35, sc: 0.47, ir_1400: 94, ir_950: 92, uvr: 99, tser: 59 },
+            { id: 'tszr18', name: 'TSZR18', vlt: 18, sc: 0.42, ir_1400: 94, ir_950: 94, uvr: 99, tser: 63 },
+            { id: 'tstns60', name: 'TSTNS60', vlt: 66, sc: 0.55, ir_1400: 99, ir_950: 96, uvr: 99, tser: 52 },
+            { id: 'tstns35', name: 'TSTNS35', vlt: 38, sc: 0.48, ir_1400: 99, ir_950: 96, uvr: 99, tser: 59 },
+            { id: 'tstns18', name: 'TSTNS18', vlt: 18, sc: 0.42, ir_1400: 99, ir_950: 97, uvr: 99, tser: 64 },
+            { id: 'tstns10', name: 'TSTNS10', vlt: 9, sc: 0.40, ir_1400: 99, ir_950: 98, uvr: 99, tser: 65 },
+            { id: 'tstnc70', name: 'TSTNC70', vlt: 75, sc: 0.60, ir_1400: 98, ir_950: 95, uvr: 99, tser: 48 },
+            { id: 'tstnc35', name: 'TSTNC35', vlt: 35, sc: 0.47, ir_1400: 99, ir_950: 97, uvr: 99, tser: 59 },
+            { id: 'tstnc18', name: 'TSTNC18', vlt: 18, sc: 0.42, ir_1400: 99, ir_950: 97, uvr: 99, tser: 63 },
+            { id: 'tstnc10', name: 'TSTNC10', vlt: 10, sc: 0.40, ir_1400: 99, ir_950: 98, uvr: 99, tser: 65 }
+        ];
+
+        // CORRECTED coordinates based on the standard US map reference
+        const US_CITIES = {
+            'Seattle, WA': { name: 'Seattle, WA', cdd: 220, hdd: 4800, solar: 3.6, x: 9, y: 15 },
+            'Portland, OR': { name: 'Portland, OR', cdd: 370, hdd: 4200, solar: 4.0, x: 8, y: 22 },
+            'San Francisco, CA': { name: 'San Francisco, CA', cdd: 200, hdd: 2900, solar: 5.5, x: 5, y: 40 },
+            'Los Angeles, CA': { name: 'Los Angeles, CA', cdd: 760, hdd: 1350, solar: 5.8, x: 8, y: 52 },
+            'San Diego, CA': { name: 'San Diego, CA', cdd: 680, hdd: 1070, solar: 5.9, x: 9, y: 58 },
+            'Phoenix, AZ': { name: 'Phoenix, AZ', cdd: 4380, hdd: 1000, solar: 6.5, x: 17, y: 55 },
+            'Las Vegas, NV': { name: 'Las Vegas, NV', cdd: 3400, hdd: 2290, solar: 6.2, x: 14, y: 47 },
+            'Salt Lake City, UT': { name: 'Salt Lake City, UT', cdd: 1050, hdd: 5800, solar: 5.6, x: 21, y: 36 },
+            'Denver, CO': { name: 'Denver, CO', cdd: 680, hdd: 6020, solar: 5.5, x: 30, y: 41 },
+            'Minneapolis, MN': { name: 'Minneapolis, MN', cdd: 750, hdd: 7870, solar: 4.3, x: 50, y: 23 },
+            'Chicago, IL': { name: 'Chicago, IL', cdd: 850, hdd: 6500, solar: 4.2, x: 59, y: 34 },
+            'Detroit, MI': { name: 'Detroit, MI', cdd: 780, hdd: 6560, solar: 4.0, x: 65, y: 31 },
+            'Kansas City, MO': { name: 'Kansas City, MO', cdd: 1450, hdd: 4900, solar: 4.8, x: 51, y: 43 },
+            'Dallas, TX': { name: 'Dallas, TX', cdd: 2620, hdd: 2360, solar: 5.4, x: 49, y: 59 },
+            'Austin, TX': { name: 'Austin, TX', cdd: 2850, hdd: 1650, solar: 5.5, x: 48, y: 66 },
+            'Houston, TX': { name: 'Houston, TX', cdd: 2700, hdd: 1450, solar: 5.3, x: 52, y: 70 },
+            'Nashville, TN': { name: 'Nashville, TN', cdd: 1650, hdd: 3500, solar: 4.8, x: 60, y: 49 },
+            'Atlanta, GA': { name: 'Atlanta, GA', cdd: 1650, hdd: 2980, solar: 5.0, x: 66, y: 56 },
+            'Charlotte, NC': { name: 'Charlotte, NC', cdd: 1560, hdd: 3200, solar: 4.9, x: 73, y: 51 },
+            'New Orleans, LA': { name: 'New Orleans, LA', cdd: 2800, hdd: 1460, solar: 5.2, x: 56, y: 69 },
+            'Orlando, FL': { name: 'Orlando, FL', cdd: 3350, hdd: 456, solar: 5.6, x: 75, y: 69 },
+            'Miami, FL': { name: 'Miami, FL', cdd: 4038, hdd: 141, solar: 5.8, x: 77, y: 78 },
+            'Philadelphia, PA': { name: 'Philadelphia, PA', cdd: 1190, hdd: 4800, solar: 4.3, x: 80, y: 40 },
+            'New York, NY': { name: 'New York, NY', cdd: 1080, hdd: 4750, solar: 4.2, x: 82, y: 36 },
+            'Boston, MA': { name: 'Boston, MA', cdd: 740, hdd: 5630, solar: 4.0, x: 86, y: 32 }
+        };
+
+        const BUILDING_TYPES = {
+            'residential': { name: 'Residential Home', hvac_efficiency: 0.75, window_ratio: 0.15 },
+            'office': { name: 'Office Building', hvac_efficiency: 0.80, window_ratio: 0.35 },
+            'retail': { name: 'Retail/Commercial', hvac_efficiency: 0.78, window_ratio: 0.25 },
+            'school': { name: 'School/Educational', hvac_efficiency: 0.76, window_ratio: 0.20 },
+            'warehouse': { name: 'Warehouse/Industrial', hvac_efficiency: 0.70, window_ratio: 0.10 }
+        };
+
+        const GLASS_TYPES = {
+            'single': { 
+                name: 'Single Pane Clear', 
+                u_value: 5.8, 
+                shgc: 0.86,
+                desc: 'One layer of glass',
+                img: 'single_pane_clear.png'
+            },
+            'double': { 
+                name: 'Double Pane Clear', 
+                u_value: 2.8, 
+                shgc: 0.76,
+                desc: 'Two layers with air gap',
+                img: 'double_pane_clear.png'
+            },
+            'double-tinted': { 
+                name: 'Double Pane Tinted', 
+                u_value: 2.6, 
+                shgc: 0.60,
+                desc: 'Two layers with tint',
+                img: 'double_pane_tinted.png'
+            },
+            'double-lowE': { 
+                name: 'Double Pane Low-E', 
+                u_value: 1.8, 
+                shgc: 0.60,
+                desc: 'Two layers with low-E coating',
+                img: 'double_pane_low-e.png'
+            }
+        };
+
+        let currentStep = 1;
+        const totalSteps = 7;
+        let inputs = {
+            city: '',
+            buildingType: '',
+            glassType: '',
+            buildingArea: null,
+            buildingAreaUnit: 'm2',
+            windowArea: 100,
+            windowAreaUnit: 'm2',
+            desiredVLT: 50,
+            electricityCost: 0.12
+        };
+
+        function init() {
+            renderCityMarkers();
+            renderBuildingOptions();
+            renderGlassOptions();
+            setupUnitToggles();
+            updateLivingRoomPreview();
+            updateProgress();
+            
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.map-search-container')) {
+                    document.getElementById('search-dropdown').classList.remove('show');
+                }
+            });
+        }
+
+        function renderCityMarkers() {
+            const container = document.getElementById('city-markers');
+            Object.entries(US_CITIES).forEach(([key, city]) => {
+                const point = document.createElement('div');
+                point.className = 'city-point';
+                point.style.left = `${city.x}%`;
+                point.style.top = `${city.y}%`;
+                point.dataset.city = key;
+                point.onclick = () => selectCity(key);
+                
+                const label = document.createElement('div');
+                label.className = 'city-label';
+                label.style.left = `${city.x}%`;
+                label.style.top = `${city.y}%`;
+                label.textContent = key.split(',')[0];
+                
+                container.appendChild(point);
+                container.appendChild(label);
+            });
+        }
+
+        function showDropdown() {
+            const dropdown = document.getElementById('search-dropdown');
+            if (dropdown.innerHTML === '') {
+                updateDropdown('');
+            }
+            dropdown.classList.add('show');
+        }
+
+        function updateDropdown(searchTerm) {
+            const dropdown = document.getElementById('search-dropdown');
+            const filtered = Object.keys(US_CITIES).filter(city => 
+                city.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+            
+            if (filtered.length === 0) {
+                dropdown.innerHTML = '<div class="dropdown-item">No cities found</div>';
+            } else {
+                dropdown.innerHTML = filtered.map(city => `
+                    <div class="dropdown-item" onclick="selectCityFromDropdown('${city}')">
+                        <strong>${city.split(',')[0]}</strong>, ${city.split(',')[1]}
+                    </div>
+                `).join('');
+            }
+        }
+
+        function searchCity() {
+            const searchTerm = document.getElementById('city-search').value;
+            updateDropdown(searchTerm);
+            document.getElementById('search-dropdown').classList.add('show');
+        }
+
+        function selectCityFromDropdown(key) {
+            selectCity(key);
+            document.getElementById('city-search').value = key;
+            document.getElementById('search-dropdown').classList.remove('show');
+        }
+
+        function selectCity(key) {
+            inputs.city = key;
+            document.querySelectorAll('.city-point').forEach(m => m.classList.remove('selected'));
+            const marker = document.querySelector(`.city-point[data-city="${key}"]`);
+            if (marker) marker.classList.add('selected');
+            
+            document.getElementById('selected-city-info').classList.add('show');
+            document.getElementById('selected-city-name').textContent = `Selected: ${key}`;
+            document.getElementById('step-1-next').disabled = false;
+        }
+
+        function renderBuildingOptions() {
+            document.getElementById('building-options').innerHTML = Object.entries(BUILDING_TYPES).map(([key, data]) => `
+                <button class="option-button" onclick="selectBuilding('${key}')">
+                    <strong>${data.name}</strong>
+                </button>
+            `).join('');
+        }
+
+        function selectBuilding(key) {
+            inputs.buildingType = key;
+            document.querySelectorAll('#building-options .option-button').forEach(btn => btn.classList.remove('selected'));
+            event.target.closest('.option-button').classList.add('selected');
+            document.getElementById('step-2-next').disabled = false;
+        }
+
+        function renderGlassOptions() {
+            document.getElementById('glass-options').innerHTML = Object.entries(GLASS_TYPES).map(([key, data]) => `
+                <div class="glass-card" onclick="selectGlass('${key}')" data-glass="${key}">
+                    <div class="glass-card-image">
+                        <img src="${data.img}" alt="${data.name}">
+                    </div>
+                    <div class="glass-card-content">
+                        <div class="glass-card-title">${data.name}</div>
+                        <div class="glass-card-desc">${data.desc}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function selectGlass(key) {
+            inputs.glassType = key;
+            document.querySelectorAll('.glass-card').forEach(card => card.classList.remove('selected'));
+            document.querySelector(`[data-glass="${key}"]`).classList.add('selected');
+            document.getElementById('step-3-next').disabled = false;
+        }
+
+        function setupUnitToggles() {
+            document.querySelectorAll('#building-unit-toggle .unit-option').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    inputs.buildingAreaUnit = this.dataset.unit;
+                    document.querySelectorAll('#building-unit-toggle .unit-option').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+
+            document.querySelectorAll('#window-unit-toggle .unit-option').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    inputs.windowAreaUnit = this.dataset.unit;
+                    document.querySelectorAll('#window-unit-toggle .unit-option').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+        }
+
+        function skipBuildingArea() {
+            inputs.buildingArea = null;
+            nextStep();
+        }
+
+        function updateLivingRoomPreview() {
+            const vlt = parseInt(document.getElementById('vlt-slider').value);
+            inputs.desiredVLT = vlt;
+            document.getElementById('vlt-value').textContent = vlt;
+            
+            const overlay = document.getElementById('living-room-overlay');
+            const opacity = (100 - vlt) / 100 * 0.85;
+            overlay.style.opacity = opacity;
+        }
+
+        function nextStep() {
+            if (currentStep < totalSteps) {
+                currentStep++;
+                showStep(currentStep);
+            }
+        }
+
+        function previousStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                showStep(currentStep);
+            }
+        }
+
+        function showStep(step) {
+            document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+            document.getElementById(`step-${step}`).classList.add('active');
+            updateProgress();
+            window.scrollTo(0, 0);
+        }
+
+        function updateProgress() {
+            document.getElementById('progress-fill').style.width = `${(currentStep / totalSteps) * 100}%`;
+            
+            for (let i = 1; i <= totalSteps; i++) {
+                const stepEl = document.getElementById(`progress-step-${i}`);
+                if (i <= currentStep) {
+                    stepEl.classList.add('active');
+                } else {
+                    stepEl.classList.remove('active');
+                }
+            }
+        }
+
+        function calculateSavings() {
+            const city = US_CITIES[inputs.city];
+            const building = BUILDING_TYPES[inputs.buildingType];
+            const glass = GLASS_TYPES[inputs.glassType];
+            
+            let windowArea = parseFloat(document.getElementById('window-area').value) || 100;
+            let windowAreaInM2 = windowArea;
+            if (inputs.windowAreaUnit === 'ft2') {
+                windowAreaInM2 = windowArea * 0.092903;
+            }
+            
+            let buildingArea = null;
+            const buildingAreaValue = parseFloat(document.getElementById('building-area').value);
+            if (buildingAreaValue > 0) {
+                buildingArea = buildingAreaValue;
+                if (inputs.buildingAreaUnit === 'ft2') {
+                    buildingArea = buildingArea * 0.092903;
+                }
+            }
+            
+            inputs.electricityCost = parseFloat(document.getElementById('electricity-cost').value) || 0.12;
+            
+            const recommendedFilm = WINDOW_FILMS.reduce((prev, curr) => 
+                Math.abs(curr.vlt - inputs.desiredVLT) < Math.abs(prev.vlt - inputs.desiredVLT) ? curr : prev
+            );
+
+            let adjustedHvacEfficiency = building.hvac_efficiency;
+            if (buildingArea && windowAreaInM2) {
+                const actualWindowRatio = windowAreaInM2 / buildingArea;
+                if (actualWindowRatio > building.window_ratio * 1.5) {
+                    adjustedHvacEfficiency *= 0.95;
+                }
+            }
+
+            const shgc_with_film = glass.shgc * recommendedFilm.sc;
+            const shgc_reduction = glass.shgc - shgc_with_film;
+            const u_value_improvement = glass.u_value * 0.12;
+            const u_value_with_film = glass.u_value - u_value_improvement;
+
+            const cooling_hours = city.cdd * 24;
+            const solar_gain_reduction = windowAreaInM2 * shgc_reduction * city.solar * (cooling_hours / 8760);
+            const cooling_energy_saved = solar_gain_reduction / adjustedHvacEfficiency;
+            const heating_energy_saved = windowAreaInM2 * u_value_improvement * city.hdd * 24 * 0.024 / adjustedHvacEfficiency;
+
+            const total_energy_saved = cooling_energy_saved + heating_energy_saved;
+            const peak_load_reduction = windowAreaInM2 * shgc_reduction * 1.0;
+            const annual_cost_savings = total_energy_saved * inputs.electricityCost;
+            const co2_reduction = total_energy_saved * 0.5;
+            
+            let energy_per_window;
+            let areaUnitLabel;
+            if (inputs.windowAreaUnit === 'ft2') {
+                energy_per_window = total_energy_saved / windowArea;
+                areaUnitLabel = 'kWh/ft²/year';
+            } else {
+                energy_per_window = total_energy_saved / windowArea;
+                areaUnitLabel = 'kWh/m²/year';
+            }
+
+            displayResults({
+                recommendedFilm,
+                totalEnergySaved: Math.round(total_energy_saved),
+                coolingEnergySaved: Math.round(cooling_energy_saved),
+                heatingEnergySaved: Math.round(heating_energy_saved),
+                energyPerWindow: Math.round(energy_per_window * 10) / 10,
+                energyPerWindowUnit: areaUnitLabel,
+                windowUnit: inputs.windowAreaUnit === 'ft2' ? 'ft²' : 'm²',
+                annualCostSavings: Math.round(annual_cost_savings),
+                co2Reduction: Math.round(co2_reduction),
+                peakLoadReduction: Math.round(peak_load_reduction * 10) / 10,
+                shgcBefore: Math.round(glass.shgc * 100),
+                shgcAfter: Math.round(shgc_with_film * 100),
+                uValueBefore: Math.round(glass.u_value * 10) / 10,
+                uValueAfter: Math.round(u_value_with_film * 10) / 10
+            });
+
+            currentStep = 7;
+            showStep(7);
+        }
+
+        function displayResults(results) {
+            document.getElementById('results-container').innerHTML = `
+                <div class="recommended-film">
+                    <div class="recommended-film-label">Recommended Product</div>
+                    <div class="recommended-film-name">${results.recommendedFilm.name}</div>
+                    <div class="recommended-film-specs">
+                        VLT: ${results.recommendedFilm.vlt}% | TSER: ${results.recommendedFilm.tser}%
+                    </div>
+                </div>
+
+                <div class="results-grid">
+                    <div class="result-card blue">
+                        <div class="result-card-label">Annual Energy Savings</div>
+                        <div class="result-card-value">${results.totalEnergySaved.toLocaleString()}</div>
+                        <div class="result-card-unit">kWh/year</div>
+                    </div>
+                    <div class="result-card green">
+                        <div class="info-icon">i</div>
+                        <div class="info-tooltip">Annual electricity cost savings from reduced heating and cooling energy consumption</div>
+                        <div class="result-card-label">Annual Cost Savings</div>
+                        <div class="result-card-value">$${results.annualCostSavings.toLocaleString()}</div>
+                        <div class="result-card-unit">per year</div>
+                    </div>
+                    <div class="result-card yellow">
+                        <div class="info-icon">i</div>
+                        <div class="info-tooltip">Energy savings per ${results.windowUnit} of window area per year</div>
+                        <div class="result-card-label">Energy per ${results.windowUnit} Window</div>
+                        <div class="result-card-value">${results.energyPerWindow}</div>
+                        <div class="result-card-unit">${results.energyPerWindowUnit}</div>
+                    </div>
+                    <div class="result-card green">
+                        <div class="result-card-label">CO₂ Reduction</div>
+                        <div class="result-card-value">${results.co2Reduction.toLocaleString()}</div>
+                        <div class="result-card-unit">kg CO₂/year</div>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <h3>Energy Breakdown (Annual)</h3>
+                    <div class="info-row">
+                        <span>Cooling Energy Saved:</span>
+                        <span class="info-row-value">${results.coolingEnergySaved.toLocaleString()} kWh/year</span>
+                    </div>
+                    <div class="info-row">
+                        <span>Heating Energy Saved:</span>
+                        <span class="info-row-value">${results.heatingEnergySaved.toLocaleString()} kWh/year</span>
+                    </div>
+                    <div class="info-row">
+                        <span>Peak Load Reduction:</span>
+                        <span class="info-row-value">${results.peakLoadReduction} kW</span>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <h3>Window Performance Improvements</h3>
+                    <div class="info-row">
+                        <span>Solar Heat Gain (SHGC):</span>
+                        <span class="info-row-value">${results.shgcBefore}% → <strong style="color: #10b981;">${results.shgcAfter}%</strong></span>
+                    </div>
+                    <div class="info-row">
+                        <span>U-Value (W/m²K):</span>
+                        <span class="info-row-value">${results.uValueBefore} → <strong style="color: #10b981;">${results.uValueAfter}</strong></span>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <h3>Film Specifications</h3>
+                    <div class="spec-grid">
+                        <div class="spec-item">
+                            <span>Visible Light Transmission:</span>
+                            <span class="spec-value">${results.recommendedFilm.vlt}%</span>
+                        </div>
+                        <div class="spec-item">
+                            <span>Shading Coefficient:</span>
+                            <span class="spec-value">${results.recommendedFilm.sc}</span>
+                        </div>
+                        <div class="spec-item">
+                            <span>IR Rejection (1400nm):</span>
+                            <span class="spec-value">${results.recommendedFilm.ir_1400}%</span>
+                        </div>
+                        <div class="spec-item">
+                            <span>IR Rejection (950nm):</span>
+                            <span class="spec-value">${results.recommendedFilm.ir_950}%</span>
+                        </div>
+                        <div class="spec-item">
+                            <span>UV Rejection:</span>
+                            <span class="spec-value">${results.recommendedFilm.uvr}%</span>
+                        </div>
+                        <div class="spec-item">
+                            <span>Total Solar Energy Rejection:</span>
+                            <span class="spec-value">${results.recommendedFilm.tser}%</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function downloadResults() {
+            const resultsPage = document.getElementById('results-page');
+            
+            html2canvas(resultsPage, {
+                backgroundColor: '#ffffff',
+                scale: 2,
+                logging: false,
+                useCORS: true
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'window-film-savings-report.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        }
+
+        function resetCalculator() {
+            currentStep = 1;
+            inputs = {
+                city: '',
+                buildingType: '',
+                glassType: '',
+                buildingArea: null,
+                buildingAreaUnit: 'm2',
+                windowArea: 100,
+                windowAreaUnit: 'm2',
+                desiredVLT: 50,
+                electricityCost: 0.12
+            };
+            
+            document.getElementById('building-area').value = '';
+            document.getElementById('window-area').value = 100;
+            document.getElementById('vlt-slider').value = 50;
+            document.getElementById('electricity-cost').value = 0.12;
+            document.getElementById('city-search').value = '';
+            
+            document.querySelectorAll('.city-point').forEach(m => m.classList.remove('selected'));
+            document.querySelectorAll('.option-button').forEach(btn => btn.classList.remove('selected'));
+            document.querySelectorAll('.glass-card').forEach(card => card.classList.remove('selected'));
+            
+            document.getElementById('selected-city-info').classList.remove('show');
+            document.getElementById('search-dropdown').classList.remove('show');
+            document.getElementById('step-1-next').disabled = true;
+            document.getElementById('step-2-next').disabled = true;
+            document.getElementById('step-3-next').disabled = true;
+            
+            document.querySelectorAll('#building-unit-toggle .unit-option').forEach((btn, i) => {
+                if (i === 0) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+            document.querySelectorAll('#window-unit-toggle .unit-option').forEach((btn, i) => {
+                if (i === 0) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+            
+            updateLivingRoomPreview();
+            showStep(1);
+        }
+
+        init();
+    </script>
+</body>
+</html>
